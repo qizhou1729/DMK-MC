@@ -1,0 +1,15 @@
+name = "PDMK4MC"
+uuid = "e4c8b4d2-5072-4abd-9b0d-7efcb1a2c66b"
+version = "0.1.0"
+authors = ["PDMK4MC Contributors"]
+
+[deps]
+Logging = "56ddb016-857b-54e1-b83d-db4d58db5568"
+MPI = "da04e1cc-30fd-572f-bb4f-1f8673147195"
+MPIPreferences = "3da0fdf6-3ccc-4f1b-acd9-58baa6c99267"
+
+[compat]
+Logging = "1.11.0"
+MPI = "0.20"
+MPIPreferences = "0.1.11"
+julia = "1.9"

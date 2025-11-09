@@ -49,3 +49,5 @@ plot/Manifest.toml
 profile/
 .cache/
 Testing/
+
+Manifest.toml
