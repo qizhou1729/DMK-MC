@@ -1,6 +1,7 @@
 module PDMK4MC
 
 using MPI
+using Logging: @debug
 using Base: Cdouble, Cfloat, Cint, Clonglong
 import Base: length
 
@@ -24,7 +25,33 @@ function _hpdmk_comm_world()
     return ccall((:hpdmk_comm_world, libhpdmk), MPI.MPI_Comm, ())
 end
 
+function _mpi_library_version()
+    try
+        buf = Vector{UInt8}(undef, MPI.MPI_MAX_LIBRARY_VERSION_STRING)
+        len = Ref{Cint}()
+        status = ccall((:MPI_Get_library_version, MPI.libmpi), Cint,
+                       (Ptr{UInt8}, Ptr{Cint}), buf, len)
+        status == MPI.MPI_SUCCESS || return nothing
+        return unsafe_string(pointer(buf), len[])
+    catch err
+        @debug "failed to query MPI library version" exception=err
+    end
+    return nothing
+end
+
+function _ensure_openmpi()
+    version = _mpi_library_version()
+    if version === nothing
+        return
+    end
+    version = strip(version)
+    occursin("Open MPI", version) && return
+    error("PDMK4MC.jl requires an Open MPI runtime; detected '\$version'. " *
+          "Run MPIPreferences.use_jll_binary(\"OpenMPI_jll\") before using PDMK4MC.")
+end
+
 function __init__()
+    _ensure_openmpi()
     _hpdmk_mpi_init()
 end
 
