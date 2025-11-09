@@ -10,7 +10,7 @@ export HPDMKParams, hpdmk_init, DIRECT, PROXY, Tree,
        eval_energy, eval_energy_window, eval_energy_diff, eval_energy_res,
        eval_shift_energy, update_shift!
 
-const libhpdmk = get(ENV, "HPDMK_LIBRARY", "libhpdmk")
+const libhpdmk = get(ENV, "HPDMK_LIBRARY", "/mnt/home/xgao1/codes/PDMK4MC/build/libhpdmk.so")
 
 function _hpdmk_mpi_init()
     initialized = ccall((:hpdmk_mpi_initialized, libhpdmk), Cint, ())
@@ -130,7 +130,7 @@ _to_comm(::Nothing) = MPI.COMM_NULL
 Create a hierarchical PDMK tree from source coordinates ``r_src`` and particle charges ``charge``.
 
 The coordinate container can either be a ``3×N`` matrix or a length ``3N`` vector with
-``x₁,y₁,z₁,\ldots,x_N,y_N,z_N`` ordering.  MPI is initialised automatically through ``libhpdmk``
+``x₁,y₁,z₁,ldots,x_N,y_N,z_N`` ordering.  MPI is initialised automatically through ``libhpdmk``
 itself so that the Julia bindings always talk to the same MPI implementation as the native code.
 Passing ``comm=nothing`` uses the library's ``MPI_COMM_WORLD``; callers that already have a
 communicator (for example from MPI.jl) can provide it explicitly.  The optional ``precision``
