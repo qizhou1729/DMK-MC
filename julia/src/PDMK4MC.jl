@@ -122,7 +122,7 @@ _to_comm(comm::MPI.Comm) = comm.val
 _to_comm(comm::MPI.MPI_Comm) = comm
 _to_comm(comm::Ptr) = comm
 _to_comm(comm::Integer) = comm
-_to_comm(::Nothing) = MPI.MPI_COMM_NULL
+_to_comm(::Nothing) = MPI.COMM_NULL
 
 """
     create_tree(r_src, charge; params=HPDMKParams(), comm=nothing, precision=nothing)
