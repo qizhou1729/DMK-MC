@@ -10,8 +10,7 @@ export HPDMKParams, hpdmk_init, DIRECT, PROXY, Tree,
        eval_energy, eval_energy_window, eval_energy_diff, eval_energy_res,
        eval_shift_energy, update_shift!
 
-# const libhpdmk = get(ENV, "HPDMK_LIBRARY", "libhpdmk")
-const libhpdmk = "/mnt/home/xgao1/codes/PDMK4MC/build/libhpdmk.so"
+const libhpdmk = get(ENV, "HPDMK_LIBRARY", joinpath(@__DIR__, "../../build/libhpdmk.so"))
 
 function _hpdmk_mpi_init()
     initialized = ccall((:hpdmk_mpi_initialized, libhpdmk), Cint, ())
@@ -65,7 +64,6 @@ Base.@kwdef struct HPDMKParams
     n_per_leaf::Cint = Cint(200)
     digits::Cint = Cint(3)
     L::Cdouble = 1.0
-    prolate_order::Cdouble = Cdouble(16.0)
     init::hpdmk_init = PROXY
 end
 

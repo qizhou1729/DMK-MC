@@ -19,7 +19,6 @@ namespace hpdmk {
         else {
             Real k = sqrt(k2);
             Real k_scaled = k * sigma;
-            // Real window = fourier_poly.eval(k_scaled) / k2;
             Real window = prolate0_fourier_eval<Real>(lambda, C0, c, k_scaled) / k2;
             return window;
         }

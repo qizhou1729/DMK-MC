@@ -35,7 +35,7 @@ namespace hpdmk {
         
         real_poly = PolyFun<Real>(coefs);
         // real_poly = approximate_real_poly<Real>(c, params.prolate_order);
-        auto fourier_poly = approximate_fourier_poly<Real>(c, params.prolate_order);
+        // auto fourier_poly = approximate_fourier_poly<Real>(c, params.prolate_order);
         // diff0 = fourier_poly.coeffs[fourier_poly.order - 3];
 
         auto diff0_ref = - 2.0 * M_PI * prolate0_intx2_eval(c, 1.0) / C0 * c * c;
