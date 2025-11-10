@@ -51,6 +51,9 @@ float hpdmk_eval_shift_energy_f(hpdmk_tree tree, long long i_particle, float dx,
 void hpdmk_update_shift(hpdmk_tree tree, long long i_particle, double dx, double dy, double dz);
 void hpdmk_update_shift_f(hpdmk_tree tree, long long i_particle, float dx, float dy, float dz);
 
+int tree_depth(hpdmk_tree tree);
+int tree_depth_f(hpdmk_tree tree);
+
 #ifdef __cplusplus
 }
 #endif

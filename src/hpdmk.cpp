@@ -56,6 +56,15 @@ namespace hpdmk {
     }
 
     template <typename Real>
+    inline int tree_depth(hpdmk_tree tree) {
+        if (!tree) {
+            return 0;
+        }
+        auto *tree_ptr = static_cast<hpdmk::HPDMKPtTree<Real> *>(tree);
+        return tree_ptr->n_levels();
+    }
+
+    template <typename Real>
     inline void form_outgoing_pw(hpdmk_tree tree) {
         if (!tree) {
             return;
@@ -329,5 +338,13 @@ extern "C" {
         } catch (const std::exception &ex) {
             std::fprintf(stderr, "hpdmk_update_shift_f failed: %s\n", ex.what());
         }
+    }
+    
+    int tree_depth(hpdmk_tree tree) {
+        return hpdmk::tree_depth<double>(tree);
+    }
+    
+    int tree_depth_f(hpdmk_tree tree) {
+        return hpdmk::tree_depth<float>(tree);
     }
 }
