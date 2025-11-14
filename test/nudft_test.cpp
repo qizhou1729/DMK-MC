@@ -52,7 +52,7 @@ TEST(NudftFloatTest, BasicAssertions) {
     const int N_half = 10;
     const int N = 21;
 
-    const float eps = 1e-6;
+    const float eps = 1e-7;
 
     std::vector<float> x(M), y(M), z(M);
     std::vector<complex<float>> c(M);
