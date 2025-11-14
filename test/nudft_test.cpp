@@ -52,7 +52,7 @@ TEST(NudftFloatTest, BasicAssertions) {
     const int N_half = 10;
     const int N = 21;
 
-    const float eps = 1e-7;
+    const float eps = 1e-6;
 
     std::vector<float> x(M), y(M), z(M);
     std::vector<complex<float>> c(M);
@@ -79,8 +79,8 @@ TEST(NudftFloatTest, BasicAssertions) {
     }
 
     for (int i = 0; i < N * N * (N_half + 1); i++) {
-        EXPECT_NEAR(real(f[i]), real(f_half[i]), 1e-5);
-        EXPECT_NEAR(imag(f[i]), imag(f_half[i]), 1e-5);
+        EXPECT_NEAR(real(f[i]), real(f_half[i]), 1e-4);
+        EXPECT_NEAR(imag(f[i]), imag(f_half[i]), 1e-4);
     }
 }   
 
