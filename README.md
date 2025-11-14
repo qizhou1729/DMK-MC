@@ -2,20 +2,6 @@
 
 This is a C++ implementation of the periodic dual-space multilevel kernel-splitting method for Monte Carlo simulation long-range electrostatics systems.
 
-## Work done
-
-- [x] set up cpp project and ci
-- [x] implement the ewald summation
-- [x] implement the planewave version of hpdmk
-- [x] detailed unit tests
-- [x] replace the Gaussian kernel with PSWF kernel
-- [x] arbitrary single particle shifting and system update
-- [x] incoming planewave and energy update
-
-## Future to do list
-
-- [ ] user level interface (not necessary for now)
-
 ## How to use
 
 1. Clone the repository
