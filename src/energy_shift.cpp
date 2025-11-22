@@ -43,13 +43,14 @@ namespace hpdmk {
         // std::cout << "target xyz in: " << x_t << ", " << y_t << ", " << z_t << std::endl;
 
         locate_particle(path_to_target, x_t, y_t, z_t);
+
         locate_particle(path_to_origin, x_o, y_o, z_o);
 
         // std::cout << "tree, origin, target depth: " << this->n_levels() << ", " << path_to_origin.Dim() - 1 << ", " << path_to_target.Dim() - 1 << std::endl;
 
         form_outgoing_pw_single(outgoing_pw_origin, path_to_origin, x_o, y_o, z_o, q);
         form_outgoing_pw_single(outgoing_pw_target, path_to_target, x_t, y_t, z_t, q);
-        
+
         Real dE_window = eval_shift_energy_window();
         Real dE_difference = eval_shift_energy_diff(i_particle);
         Real dE_residual_target = eval_shift_energy_res_vec(i_particle, path_to_target, x_t, y_t, z_t, q);

@@ -11,6 +11,7 @@
 
 #include <sctl.hpp>
 #include <mpi.h>
+#include <cstdlib> 
 
 namespace hpdmk {
     template <typename Real>
@@ -208,29 +209,45 @@ namespace hpdmk {
 
         path.ReInit(0);
         sctl::Long node_0 = root();
+        sctl::Long node_old = root();
         path.PushBack(node_0);
 
         while (true) {
             if (isleaf(node_attr[node_0])) {
                 return ;
             } else {
-                int depth = node_mid[node_0].Depth();
+                Real center_x0 = centers[node_0 * 3];
+                Real center_y0 = centers[node_0 * 3 + 1];
+                Real center_z0 = centers[node_0 * 3 + 2];
+
+                int sign_x0 = (x - center_x0) > 0 ? 1 : -1;
+                int sign_y0 = (y - center_y0) > 0 ? 1 : -1;
+                int sign_z0 = (z - center_z0) > 0 ? 1 : -1;
+
                 for (int i = 0; i < 8; ++i) {
                     sctl::Long i_child = node_list[node_0].child[i];
+                    // std::cout << "i_child: " << i_child << ", node_0: " << node_0 << std::endl;
+
                     Real center_x = centers[i_child * 3];
                     Real center_y = centers[i_child * 3 + 1];
                     Real center_z = centers[i_child * 3 + 2];
 
-                    Real shift_x = std::abs(x - center_x);
-                    Real shift_y = std::abs(y - center_y);
-                    Real shift_z = std::abs(z - center_z);
+                    int sign_xi = (center_x - center_x0) > 0 ? 1 : -1;
+                    int sign_yi = (center_y - center_y0) > 0 ? 1 : -1;
+                    int sign_zi = (center_z - center_z0) > 0 ? 1 : -1;
 
-                    if (shift_x <= boxsize[depth + 1] / 2 && shift_y <= boxsize[depth + 1] / 2 && shift_z <= boxsize[depth + 1] / 2) {
+                    if (sign_xi == sign_x0 && sign_yi == sign_y0 && sign_zi == sign_z0) {
                         path.PushBack(i_child);
                         node_0 = i_child;
                         break;
                     }
                 }
+                // std::cout << "node_0: " << node_0 << ", node_old: " << node_old << std::endl;
+                if (node_0 == node_old) {
+                    std::cerr << "locate_particle: node_0 is not updated" << std::endl;
+                    std::exit(1);
+                }
+                node_old = node_0;
             }
         }
     }
