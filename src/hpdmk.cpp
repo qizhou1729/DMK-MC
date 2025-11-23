@@ -45,6 +45,19 @@ namespace hpdmk {
         auto *tree = new hpdmk::HPDMKPtTree<Real>(sctl_comm, params, r_src_vec, charge_vec);
         return static_cast<hpdmk_tree>(tree);
     }
+    
+    template <typename Real>
+    inline hpdmk_tree recontstruct_tree(MPI_Comm comm, hpdmk_tree tree) {
+        if (!tree) {
+            return nullptr;
+        }
+
+        const sctl::Comm sctl_comm(normalize_comm(comm));
+
+        auto *tree_ptr = static_cast<hpdmk::HPDMKPtTree<Real> *>(tree);
+        auto *tree_new_ptr = new hpdmk::HPDMKPtTree<Real>(hpdmk::recontstruct<Real>(sctl_comm, *tree_ptr));
+        return static_cast<hpdmk_tree>(tree_new_ptr);
+    }
 
     template <typename Real>
     inline void destroy_tree(hpdmk_tree tree) {
@@ -184,6 +197,14 @@ extern "C" {
             std::fprintf(stderr, "hpdmk_tree_create_f failed due to an unknown exception\n");
         }
         return nullptr;
+    }
+
+    hpdmk_tree hpdmk_tree_recontstruct(MPI_Comm comm, hpdmk_tree tree) {
+        return hpdmk::recontstruct_tree<double>(comm, tree);
+    }
+
+    hpdmk_tree hpdmk_tree_recontstruct_f(MPI_Comm comm, hpdmk_tree tree) {
+        return hpdmk::recontstruct_tree<float>(comm, tree);
     }
 
     void hpdmk_tree_destroy(hpdmk_tree tree) {

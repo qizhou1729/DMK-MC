@@ -6,7 +6,7 @@ using Base: Cdouble, Cfloat, Cint, Clonglong
 import Base: length
 
 export HPDMKParams, hpdmk_init, DIRECT, PROXY, Tree,
-       create_tree, destroy_tree!, form_outgoing_pw!, form_incoming_pw!,
+       create_tree, destroy_tree!, recontstruct_tree, form_outgoing_pw!, form_incoming_pw!,
        eval_energy, eval_energy_window, eval_energy_diff, eval_energy_res,
        eval_shift_energy, update_shift!, tree_depth, tree_depth_f
 

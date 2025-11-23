@@ -129,6 +129,19 @@ function create_tree(r_src, charge; params::HPDMKParams=HPDMKParams(), comm=noth
     return tree
 end
 
+function recontstruct_tree(tree::Tree{T}; comm=nothing) where {T<:AbstractFloat}
+    _hpdmk_mpi_init()
+    handle = if T === Float32
+        ccall((:hpdmk_tree_recontstruct_f, libhpdmk), Ptr{Cvoid}, (MPI.MPI_Comm, Ptr{Cvoid}), _to_comm(comm), tree.handle)
+    else
+        ccall((:hpdmk_tree_recontstruct, libhpdmk), Ptr{Cvoid}, (MPI.MPI_Comm, Ptr{Cvoid}), _to_comm(comm), tree.handle)
+    end
+    handle == C_NULL && error("hpdmk_tree_recontstruct returned a null handle")
+    tree_new = Tree{T}(handle, tree.coords, tree.charges, tree.n_particles)
+    finalizer(destroy_tree!, tree_new)
+    return tree_new
+end
+
 function destroy_tree!(tree::Tree{Float64})
     if tree.handle != C_NULL
         ccall((:hpdmk_tree_destroy, libhpdmk), Cvoid, (Ptr{Cvoid},), tree.handle)

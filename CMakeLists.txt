@@ -6,8 +6,8 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 option(HPDMK_BUILD_TESTS "Build tests" ON)
 option(BUILD_EXAMPLES "Build examples" OFF)
-option(BUILD_BENCHMARK "Build benchmark" ON)
-option(BUILD_ACCURACY "Build accuracy" ON)
+option(BUILD_BENCHMARK "Build benchmark" OFF)
+option(BUILD_ACCURACY "Build accuracy" OFF)
 
 # if(NOT CMAKE_CXX_COMPILER)
 #     set(CMAKE_CXX_COMPILER icpx CACHE STRING "Intel C++ compiler" FORCE)

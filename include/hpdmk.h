@@ -29,6 +29,9 @@ MPI_Comm hpdmk_comm_world(void);
 hpdmk_tree hpdmk_tree_create(MPI_Comm comm, HPDMKParams params, int n_src, const double *r_src, const double *charge);
 hpdmk_tree hpdmk_tree_create_f(MPI_Comm comm, HPDMKParams params, int n_src, const float *r_src, const float *charge);
 
+hpdmk_tree hpdmk_tree_recontstruct(MPI_Comm comm, hpdmk_tree tree);
+hpdmk_tree hpdmk_tree_recontstruct_f(MPI_Comm comm, hpdmk_tree tree);
+
 void hpdmk_tree_destroy(hpdmk_tree tree);
 void hpdmk_tree_destroy_f(hpdmk_tree tree);
 

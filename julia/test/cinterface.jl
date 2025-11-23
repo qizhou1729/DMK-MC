@@ -13,6 +13,13 @@
     PDMK4MC.form_incoming_pw!(tree)
     E_hpdmk = PDMK4MC.eval_energy(tree)
 
+    tree_new = PDMK4MC.recontstruct_tree(tree)
+    PDMK4MC.form_outgoing_pw!(tree_new)
+    PDMK4MC.form_incoming_pw!(tree_new)
+    E_hpdmk_new = PDMK4MC.eval_energy(tree_new)
+    @test isapprox(E_hpdmk, E_hpdmk_new, atol = 1e-3)
+    destroy_tree!(tree_new)
+
     # EwaldSummations
     boundary = Boundary((L, L, L), (1, 1, 1))
     atoms = Vector{Atom{Float64}}()

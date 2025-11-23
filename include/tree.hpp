@@ -130,22 +130,24 @@ namespace hpdmk {
         Real eval_shift_energy_res_ij(sctl::Long i_node, int i_depth, sctl::Long i_nbr, sctl::Long i_particle, Real x, Real y, Real z, Real q);
 
         void update_shift(sctl::Long i_particle_unsorted, Real dx, Real dy, Real dz); // if the shift is accepted, update the plane wave coefficients and the structure of the tree
-
-        // void init_target_planewave_coeffs(std::vector<Rank3Tensor<std::complex<Real>>>& coeffs, sctl::Vector<sctl::Long>& path, Real x, Real y, Real z, Real q); // initialize the plane wave coefficients for the target point
-        // void init_target_planewave_coeffs_i(Rank3Tensor<std::complex<Real>>& coeff, sctl::Long i_node, Real x, Real y, Real z, Real q); // initialize the plane wave coefficients for the target point
-
-        // Real energy_shift(sctl::Long i_particle, Real dx, Real dy, Real dz);
-
-        // Real window_energy_shift(std::vector<Rank3Tensor<std::complex<Real>>>& origin_coeffs, std::vector<Rank3Tensor<std::complex<Real>>>& target_coeffs); // calculate the potential at the target point using window function
-        // Real difference_energy_shift(std::vector<Rank3Tensor<std::complex<Real>>>& origin_coeffs, sctl::Vector<sctl::Long>& origin_path, std::vector<Rank3Tensor<std::complex<Real>>>& target_coeffs, sctl::Vector<sctl::Long>& target_path); // calculate the potential at the target point using difference kernel
-
-        // Real residual_energy_shift(sctl::Long i_particle, sctl::Vector<sctl::Long>& target_path, Real dx, Real dy, Real dz, Real q); // calculate the potential at the target point using residual kernel
-        // Real residual_energy_shift_i(sctl::Long i_node, int i_depth, sctl::Long i_particle, Real x, Real y, Real z, Real q); // calculate the potential at the target point using residual kernel
-        // Real residual_energy_shift_ij(sctl::Long i_node, int i_depth, sctl::Long i_nbr, sctl::Long i_particle, Real x, Real y, Real z, Real q); // calculate the potential at the target point using residual kernel
-
-        // Real difference_energy_shift_direct(int i_depth, int i_particle, Real x, Real y, Real z);
-        // Real residual_energy_shift_direct(int i_depth, Real x, Real y, Real z, Real q);
     };
+
+    template <typename Real>
+    HPDMKPtTree<Real> recontstruct(const sctl::Comm &comm, const HPDMKPtTree<Real> & tree) {
+        const int n_src = tree.charge_sorted.Dim();
+        sctl::Vector<Real> r_src_new(n_src * 3);
+        sctl::Vector<Real> charge_new(n_src);
+
+        #pragma omp simd
+        for (int i = 0; i < n_src; ++i) {
+            r_src_new[i * 3] = tree.r_src_sorted[tree.indices_invmap[i] * 3];
+            r_src_new[i * 3 + 1] = tree.r_src_sorted[tree.indices_invmap[i] * 3 + 1];
+            r_src_new[i * 3 + 2] = tree.r_src_sorted[tree.indices_invmap[i] * 3 + 2];
+            charge_new[i] = tree.charge_sorted[tree.indices_invmap[i]];
+        }
+
+        return HPDMKPtTree<Real>(comm, tree.params, r_src_new, charge_new);
+    }
 }
 
 #endif

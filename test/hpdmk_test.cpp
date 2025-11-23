@@ -470,7 +470,7 @@ void compare_shift_energy(int digits){
 void compare_update(int digits){
 
     HPDMKParams params;
-    params.n_per_leaf = 10;
+    params.n_per_leaf = 5;
     params.digits = digits;
     params.L = 20.0;
     params.init = DIRECT;
@@ -514,6 +514,39 @@ void compare_update(int digits){
 
         E_hpdmk_shift = tree.eval_shift_energy(i_particle, dx, dy, dz);
         tree.update_shift(i_particle, dx, dy, dz);
+
+        r_src[i_particle * 3] = my_mod(dx + r_src[i_particle * 3], params.L);
+        r_src[i_particle * 3 + 1] = my_mod(dy + r_src[i_particle * 3 + 1], params.L);
+        r_src[i_particle * 3 + 2] = my_mod(dz + r_src[i_particle * 3 + 2], params.L);
+
+        hpdmk::Ewald ewald_new(params.L, s, alpha, 1.0, &charge[0], &r_src[0], n_src);
+        Ewald_new = ewald_new.compute_energy();
+
+        Ewald_shift = Ewald_new - Ewald_old;
+        Ewald_old = Ewald_new;
+
+        // std::cout << "Ewald_shift: " << Ewald_shift << ", E_hpdmk_shift: " << E_hpdmk_shift << ", error: " << (Ewald_shift - E_hpdmk_shift) / Ewald_old << std::endl;
+        // std::cout << "error: " << (Ewald_shift - E_hpdmk_shift) << std::endl;
+
+        ASSERT_NEAR(abs(Ewald_shift - E_hpdmk_shift), 0, pow(10, -digits + 1));
+    }
+
+    auto tree_new = hpdmk::recontstruct(sctl_comm, tree);
+    tree_new.form_outgoing_pw();
+    tree_new.form_incoming_pw();
+
+    double E_recontstruct = tree_new.eval_energy();
+    ASSERT_NEAR(E_recontstruct, Ewald_new, pow(10, -digits + 2));
+
+    for (int i_trial = 0; i_trial < n_trials; i_trial++) {
+
+        double dx = distribution(generator);
+        double dy = distribution(generator);
+        double dz = distribution(generator);
+        int i_particle = distribution_int(generator);
+
+        E_hpdmk_shift = tree_new.eval_shift_energy(i_particle, dx, dy, dz);
+        tree_new.update_shift(i_particle, dx, dy, dz);
 
         r_src[i_particle * 3] = my_mod(dx + r_src[i_particle * 3], params.L);
         r_src[i_particle * 3 + 1] = my_mod(dy + r_src[i_particle * 3 + 1], params.L);
