@@ -13,6 +13,5 @@ export HPDMKParams, hpdmk_init, DIRECT, PROXY, Tree,
 const libhpdmk = get(ENV, "HPDMK_LIBRARY", joinpath(@__DIR__, "../../build/libhpdmk.so"))
 
 include("cinterface.jl")
-include("molly.jl")
 
 end # module
