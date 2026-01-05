@@ -1,6 +1,6 @@
-# Periodic dual-space multilevel kernel-splitting method for Monte Carlo simulation
+# Dual-space multilevel kernel-splitting method for Monte Carlo simulation
 
-This is a C++ implementation of the periodic dual-space multilevel kernel-splitting method for Monte Carlo simulation long-range electrostatics systems.
+This is a C++ implementation of the dual-space multilevel kernel-splitting method for Monte Carlo simulation long-range electrostatics systems.
 
 ## How to use
 
