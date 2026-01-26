@@ -976,16 +976,21 @@ static inline void prol0eva(double x, const double* w, double& psi0, double& der
     double thresh = w[8];
 
     if (std::abs(x) > 1) {
-        if (c < thresh - 1.0e-10) {
-            psi0 = 0;
-            derpsi0 = 0;
-            return;
-        }
 
-        prosinin(c, &w[its - 1], &w[iwhts - 1], &w[ifs - 1], x, ngauss, psi0, derpsi0);
-        psi0 /= rlam;
-        derpsi0 /= rlam;
+        psi0 = 0;
+        derpsi0 = 0;
         return;
+
+        // if (c >= thresh - 1.0e-10) {
+        //     psi0 = 0;
+        //     derpsi0 = 0;
+        //     return;
+        // }
+
+        // prosinin(c, &w[its - 1], &w[iwhts - 1], &w[ifs - 1], x, ngauss, psi0, derpsi0);
+        // psi0 /= rlam;
+        // derpsi0 /= rlam;
+        // return;
     }
 
     legeFDER(x, psi0, derpsi0, &w[iw - 1], nterms - 2);
