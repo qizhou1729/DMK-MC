@@ -943,7 +943,7 @@ static inline void prol0ini(int& ier, double c, double* w, double& rlam20, doubl
 
     // Evaluate the prolate function at the Gaussian nodes
     for (int i = 0; i < ngauss; ++i) {
-        legeexev(w[its + i - 2], w[ifs + i - 2], w + iw - 1, nterms - 1);
+        legeexev(w[its + i - 1], w[ifs + i - 1], w + iw - 1, nterms - 1);
     }
 
     // Calculate the eigenvalue corresponding to ψ^c_0
@@ -977,20 +977,24 @@ static inline void prol0eva(double x, const double* w, double& psi0, double& der
 
     if (std::abs(x) > 1) {
 
-        psi0 = 0;
-        derpsi0 = 0;
-        return;
-
-        // if (c >= thresh - 1.0e-10) {
-        //     psi0 = 0;
-        //     derpsi0 = 0;
-        //     return;
-        // }
-
-        // prosinin(c, &w[its - 1], &w[iwhts - 1], &w[ifs - 1], x, ngauss, psi0, derpsi0);
-        // psi0 /= rlam;
-        // derpsi0 /= rlam;
+        // psi0 = 0;
+        // derpsi0 = 0;
         // return;
+
+        if (c >= thresh - 1.0e-10) {
+            psi0 = 0;
+            derpsi0 = 0;
+            return;
+        }
+
+        prosinin(c, &w[its - 1], &w[iwhts - 1], &w[ifs - 1], x, ngauss, psi0, derpsi0);
+        psi0 /= rlam;
+        derpsi0 /= rlam;
+
+        psi0 = sqrt(2.0) * psi0;
+        derpsi0 = sqrt(2.0) * derpsi0;
+
+        return;
     }
 
     legeFDER(x, psi0, derpsi0, &w[iw - 1], nterms - 2);
