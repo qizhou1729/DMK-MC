@@ -76,6 +76,22 @@ namespace hpdmk{
             }
             return val;
         }
+
+        inline Real eval_derivative(Real x) const {
+            if (order <= 1) return 0.0;
+
+            Real x_scaled = (x - 0.5) * 2.0;
+            if (std::abs(x_scaled) >= 1.0) return 0.0;
+
+            Real val = coeffs[0];
+            Real deriv = 0.0;
+            for (int i = 1; i < order; ++i) {
+                deriv = deriv * x_scaled + val;
+                val = val * x_scaled + coeffs[i];
+            }
+
+            return 2.0 * deriv;
+        }
     
         int order;
         std::vector<double> coeffs;

@@ -45,6 +45,7 @@ namespace hpdmk {
         double compute_energy_self();
 
         double compute_energy();
+        std::vector<double> compute_force();
 
         std::vector<int> target_neighbors;
         std::vector<double> target_distances;
