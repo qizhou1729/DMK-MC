@@ -565,6 +565,207 @@ void compare_update(int digits){
     }
 }
 
+void compare_force_api_shape() {
+    HPDMKParams params;
+    params.n_per_leaf = 5;
+    params.digits = 3;
+    params.L = 20.0;
+    params.init = DIRECT;
+
+    const int n_src = 256;
+    sctl::Vector<double> r_src(n_src * 3);
+    sctl::Vector<double> charge(n_src);
+
+    omp_set_num_threads(1);
+
+    random_init(r_src, 0.0, params.L);
+    random_init(charge, -1.0, 1.0);
+    unify_charge(charge);
+
+    const sctl::Comm sctl_comm(MPI_COMM_WORLD);
+    hpdmk::HPDMKPtTree<double> tree(sctl_comm, params, r_src, charge);
+    tree.form_outgoing_pw();
+    tree.form_incoming_pw();
+
+    double s = 4.0;
+    double alpha = 1.0;
+    hpdmk::Ewald ewald(params.L, s, alpha, 1.0, &charge[0], &r_src[0], n_src);
+    const auto ewald_force = ewald.compute_force();
+    const auto hpdmk_force = tree.eval_force();
+
+    ASSERT_EQ(hpdmk_force.Dim(), static_cast<long>(ewald_force.size()));
+}
+
+void compare_force(int digits) {
+    HPDMKParams params;
+    params.n_per_leaf = 5;
+    params.digits = digits;
+    params.L = 20.0;
+    params.init = DIRECT;
+
+    const int n_src = 128;
+    sctl::Vector<double> r_src(n_src * 3);
+    sctl::Vector<double> charge(n_src);
+
+    omp_set_num_threads(1);
+
+    random_init(r_src, 0.0, params.L);
+    random_init(charge, -1.0, 1.0);
+    unify_charge(charge);
+
+    double s = 4.0;
+    double alpha = 1.0;
+    hpdmk::Ewald ewald(params.L, s, alpha, 1.0, &charge[0], &r_src[0], n_src);
+    const auto ewald_force = ewald.compute_force();
+
+    const sctl::Comm sctl_comm(MPI_COMM_WORLD);
+    hpdmk::HPDMKPtTree<double> tree(sctl_comm, params, r_src, charge);
+    tree.form_outgoing_pw();
+    tree.form_incoming_pw();
+    const auto hpdmk_force = tree.eval_force();
+
+    ASSERT_EQ(hpdmk_force.Dim(), static_cast<long>(ewald_force.size()));
+
+    double force_ref_norm2 = 0.0;
+    double force_err_norm2 = 0.0;
+    double fx = 0.0;
+    double fy = 0.0;
+    double fz = 0.0;
+    for (long i = 0; i < hpdmk_force.Dim(); ++i) {
+        const double diff = hpdmk_force[i] - ewald_force[i];
+        force_ref_norm2 += ewald_force[i] * ewald_force[i];
+        force_err_norm2 += diff * diff;
+
+        if (i % 3 == 0) {
+            fx += hpdmk_force[i];
+        } else if (i % 3 == 1) {
+            fy += hpdmk_force[i];
+        } else {
+            fz += hpdmk_force[i];
+        }
+    }
+
+    const double rel_error = std::sqrt(force_err_norm2 / force_ref_norm2);
+    const double net_force = std::sqrt(fx * fx + fy * fy + fz * fz);
+    EXPECT_LT(rel_error, 5e-2);
+    EXPECT_LT(net_force, 2.5e-2);
+}
+
+void compare_force_regression(int n_src, int n_per_leaf, int digits, double rel_tol, double net_tol) {
+    HPDMKParams params;
+    params.n_per_leaf = n_per_leaf;
+    params.digits = digits;
+    params.L = 20.0;
+    params.init = DIRECT;
+
+    sctl::Vector<double> r_src(n_src * 3);
+    sctl::Vector<double> charge(n_src);
+
+    omp_set_num_threads(1);
+
+    std::mt19937 pos_generator(20260316u + 97u * static_cast<unsigned>(n_src));
+    std::uniform_real_distribution<double> pos_distribution(0.0, params.L);
+    for (int i = 0; i < r_src.Dim(); ++i) {
+        r_src[i] = pos_distribution(pos_generator);
+    }
+
+    std::mt19937 charge_generator(31415926u + 193u * static_cast<unsigned>(n_src));
+    std::uniform_real_distribution<double> charge_distribution(-1.0, 1.0);
+    for (int i = 0; i < charge.Dim(); ++i) {
+        charge[i] = charge_distribution(charge_generator);
+    }
+    unify_charge(charge);
+
+    hpdmk::Ewald ewald(params.L, 4.0, 1.0, 1.0, &charge[0], &r_src[0], n_src);
+    const auto ewald_force = ewald.compute_force();
+
+    const sctl::Comm sctl_comm(MPI_COMM_WORLD);
+    hpdmk::HPDMKPtTree<double> tree(sctl_comm, params, r_src, charge);
+    tree.form_outgoing_pw();
+    tree.form_incoming_pw();
+    const auto hpdmk_force = tree.eval_force();
+
+    double force_ref_norm2 = 0.0;
+    double force_err_norm2 = 0.0;
+    double fx = 0.0;
+    double fy = 0.0;
+    double fz = 0.0;
+    for (long i = 0; i < hpdmk_force.Dim(); ++i) {
+        const double diff = hpdmk_force[i] - ewald_force[i];
+        force_ref_norm2 += ewald_force[i] * ewald_force[i];
+        force_err_norm2 += diff * diff;
+        if (i % 3 == 0) {
+            fx += hpdmk_force[i];
+        } else if (i % 3 == 1) {
+            fy += hpdmk_force[i];
+        } else {
+            fz += hpdmk_force[i];
+        }
+    }
+
+    const double rel_error = std::sqrt(force_err_norm2 / force_ref_norm2);
+    const double net_force = std::sqrt(fx * fx + fy * fy + fz * fz);
+    EXPECT_LT(rel_error, rel_tol);
+    EXPECT_LT(net_force, net_tol);
+}
+
+void compare_force_finite_difference(int digits) {
+    HPDMKParams params;
+    params.n_per_leaf = 2;
+    params.digits = digits;
+    params.L = 20.0;
+    params.init = DIRECT;
+
+    const int n_src = 64;
+    sctl::Vector<double> r_src(n_src * 3);
+    sctl::Vector<double> charge(n_src);
+
+    omp_set_num_threads(1);
+
+    random_init(r_src, 0.0, params.L);
+    random_init(charge, -1.0, 1.0);
+    unify_charge(charge);
+
+    r_src[0] = 10.37;
+    r_src[1] = 9.91;
+    r_src[2] = 11.23;
+
+    const sctl::Comm sctl_comm(MPI_COMM_WORLD);
+    hpdmk::HPDMKPtTree<double> tree(sctl_comm, params, r_src, charge);
+    tree.form_outgoing_pw();
+    tree.form_incoming_pw();
+    const auto force_window = tree.eval_force_window();
+    const auto force_diff = tree.eval_force_diff();
+    const auto force_res = tree.eval_force_res();
+    auto force = force_window;
+    force += force_diff;
+    force += force_res;
+
+    const double h = 1e-3;
+    sctl::Vector<double> r_src_plus = r_src;
+    sctl::Vector<double> r_src_minus = r_src;
+    r_src_plus[0] += h;
+    r_src_minus[0] -= h;
+
+    hpdmk::HPDMKPtTree<double> tree_plus(sctl_comm, params, r_src_plus, charge);
+    tree_plus.form_outgoing_pw();
+    tree_plus.form_incoming_pw();
+
+    hpdmk::HPDMKPtTree<double> tree_minus(sctl_comm, params, r_src_minus, charge);
+    tree_minus.form_outgoing_pw();
+    tree_minus.form_incoming_pw();
+
+    const double fd_force_x = -(tree_plus.eval_energy() - tree_minus.eval_energy()) / (2.0 * h);
+    const double fd_force_window_x = -(tree_plus.eval_energy_window() - tree_minus.eval_energy_window()) / (2.0 * h);
+    const double fd_force_diff_x = -(tree_plus.eval_energy_diff() - tree_minus.eval_energy_diff()) / (2.0 * h);
+    const double fd_force_res_x = -(tree_plus.eval_energy_res() - tree_minus.eval_energy_res()) / (2.0 * h);
+
+    EXPECT_NEAR(force[0], fd_force_x, 5 * std::pow(10.0, -digits + 1));
+    EXPECT_NEAR(force_window[0], fd_force_window_x, 5 * std::pow(10.0, -digits + 1));
+    EXPECT_NEAR(force_diff[0], fd_force_diff_x, 5 * std::pow(10.0, -digits + 1));
+    EXPECT_NEAR(force_res[0], fd_force_res_x, 5 * std::pow(10.0, -digits + 1));
+}
+
 int main(int argc, char** argv) {
     MPI_Init(nullptr, nullptr);
     testing::InitGoogleTest(&argc, argv);
@@ -604,4 +805,20 @@ TEST(HPDMKTest, Update) {
     compare_update(6);
     compare_update(9);
     compare_update(12);
+}
+
+TEST(HPDMKTest, ForceApiShape) {
+    compare_force_api_shape();
+}
+
+TEST(HPDMKTest, Force) {
+    compare_force(6);
+}
+
+TEST(HPDMKTest, ForceAccuracyRegression) {
+    compare_force_regression(256, 5, 12, 1e-6, 1e-6);
+}
+
+TEST(HPDMKTest, ForceFiniteDifference) {
+    compare_force_finite_difference(6);
 }

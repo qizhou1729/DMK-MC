@@ -14,6 +14,18 @@
 #include <chrono>
 
 namespace hpdmk {
+    namespace {
+        inline double short_range_force_scale(const double alpha, const double r) {
+            if (r == 0.0) {
+                return 0.0;
+            }
+
+            const double erfc_term = std::erfc(alpha * r) / (r * r * r);
+            const double gaussian_term = 2.0 * alpha * std::exp(-alpha * alpha * r * r) / (std::sqrt(M_PI) * r * r);
+            return erfc_term + gaussian_term;
+        }
+    }
+
     Ewald::Ewald(const double L, const double s, const double alpha, const double eps, double* q_ptr, double* r_ptr, const int n_particles)
         : L(L), s(s), alpha(alpha), eps(eps), V(L * L * L), r_c(s / alpha), k_c(2 * s * alpha), n_particles(n_particles) {
 
@@ -187,6 +199,75 @@ namespace hpdmk {
         double E = (E_short + E_long + E_self) / (eps);
         
         return E;
+    }
+
+    std::vector<double> Ewald::compute_force() {
+        this->init_neighbors();
+        this->init_planewave_coeffs();
+
+        std::vector<double> force(3 * n_particles, 0.0);
+
+        for (std::size_t i = 0; i < neighbors.length; ++i) {
+            const int i1 = static_cast<int>(neighbors.pairs[i][0]);
+            const int i2 = static_cast<int>(neighbors.pairs[i][1]);
+            const double r12 = neighbors.distances[i];
+            const double scale = -q[i1] * q[i2] * short_range_force_scale(alpha, r12);
+
+            const double dx = r[i2 * 3 + 0] - r[i1 * 3 + 0] + neighbors.shifts[i][0] * L;
+            const double dy = r[i2 * 3 + 1] - r[i1 * 3 + 1] + neighbors.shifts[i][1] * L;
+            const double dz = r[i2 * 3 + 2] - r[i1 * 3 + 2] + neighbors.shifts[i][2] * L;
+
+            force[i1 * 3 + 0] += scale * dx;
+            force[i1 * 3 + 1] += scale * dy;
+            force[i1 * 3 + 2] += scale * dz;
+        }
+
+        const int d = static_cast<int>(k.size());
+        const double long_range_scale = 4.0 * M_PI / V;
+
+        for (int i_particle = 0; i_particle < n_particles; ++i_particle) {
+            const double x = r[i_particle * 3 + 0];
+            const double y = r[i_particle * 3 + 1];
+            const double z = r[i_particle * 3 + 2];
+
+            double fx = 0.0;
+            double fy = 0.0;
+            double fz = 0.0;
+
+            for (int ix = 0; ix < d; ++ix) {
+                const double kx = k[ix];
+                for (int iy = 0; iy < d; ++iy) {
+                    const double ky = k[iy];
+                    for (int iz = 0; iz < d; ++iz) {
+                        const int idx = ix * d * d + iy * d + iz;
+                        const double weight = interaction_matrix[idx];
+                        if (weight == 0.0) {
+                            continue;
+                        }
+
+                        const double kz = k[iz];
+                        const double phase_arg = kx * x + ky * y + kz * z;
+                        const std::complex<double> phase = std::exp(std::complex<double>(0.0, phase_arg));
+                        const double imag_part = std::imag(planewave_coeffs[idx] * phase);
+                        const double mode_scale = long_range_scale * q[i_particle] * weight * imag_part;
+
+                        fx += mode_scale * kx;
+                        fy += mode_scale * ky;
+                        fz += mode_scale * kz;
+                    }
+                }
+            }
+
+            force[i_particle * 3 + 0] += fx;
+            force[i_particle * 3 + 1] += fy;
+            force[i_particle * 3 + 2] += fz;
+        }
+
+        for (double &value : force) {
+            value /= eps;
+        }
+
+        return force;
     }
 
     double Ewald::compute_energy_short() {

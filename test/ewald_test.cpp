@@ -155,3 +155,31 @@ TEST(EwaldTest, BasicAssertions) {
     EXPECT_NEAR(potentials[0], potentials[2], 1e-10);
     EXPECT_NEAR(potentials[0], potentials[3], 1e-10);
 }
+
+TEST(EwaldTest, BulkForceConservesMomentum) {
+    std::vector<double> q = {1.0, -1.0, 0.75, -0.75};
+    std::vector<double> r = {
+        1.0, 2.0, 3.0,
+        4.0, 6.0, 8.0,
+        2.5, 7.5, 1.5,
+        8.5, 3.5, 5.5,
+    };
+
+    hpdmk::Ewald ewald(10.0, 4.0, 0.8, 1.0, q.data(), r.data(), static_cast<int>(q.size()));
+    const auto force = ewald.compute_force();
+
+    ASSERT_EQ(force.size(), 3 * q.size());
+
+    double fx = 0.0;
+    double fy = 0.0;
+    double fz = 0.0;
+    for (std::size_t i = 0; i < q.size(); ++i) {
+        fx += force[3 * i];
+        fy += force[3 * i + 1];
+        fz += force[3 * i + 2];
+    }
+
+    EXPECT_NEAR(fx, 0.0, 1e-10);
+    EXPECT_NEAR(fy, 0.0, 1e-10);
+    EXPECT_NEAR(fz, 0.0, 1e-10);
+}

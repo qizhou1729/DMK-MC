@@ -88,6 +88,7 @@ set(SRC
     ${PROJECT_SOURCE_DIR}/src/energy.cpp
     ${PROJECT_SOURCE_DIR}/src/energy_direct.cpp
     ${PROJECT_SOURCE_DIR}/src/energy_shift.cpp
+    ${PROJECT_SOURCE_DIR}/src/force.cpp
     ${PROJECT_SOURCE_DIR}/src/utils.cpp
     ${PROJECT_SOURCE_DIR}/src/pswf.cpp
     ${PROJECT_SOURCE_DIR}/src/upward_pass.cpp
@@ -176,4 +177,10 @@ if(BUILD_ACCURACY)
         ${PROJECT_SOURCE_DIR}/accuracy/dmk_energyshift_accuracy.cpp
     )
     target_link_libraries(${PROJECT_NAME}_energyshift_accuracy ${PROJECT_NAME}_shared)
+
+    add_executable(
+        ${PROJECT_NAME}_force_accuracy
+        ${PROJECT_SOURCE_DIR}/accuracy/dmk_force_accuracy.cpp
+    )
+    target_link_libraries(${PROJECT_NAME}_force_accuracy ${PROJECT_NAME}_shared)
 endif()

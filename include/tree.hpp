@@ -116,6 +116,11 @@ namespace hpdmk {
         Real eval_energy_diff_direct();
         Real eval_energy_res_direct();
 
+        sctl::Vector<Real> eval_force();
+        sctl::Vector<Real> eval_force_window();
+        sctl::Vector<Real> eval_force_diff();
+        sctl::Vector<Real> eval_force_res();
+
         void locate_particle(sctl::Vector<sctl::Long>& path, Real x, Real y, Real z); // locate the node that the target point is in
         void form_outgoing_pw_single(sctl::Vector<sctl::Vector<std::complex<Real>>>& pw,sctl::Vector<sctl::Long>& path, Real x, Real y, Real z, Real q);
 

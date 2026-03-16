@@ -13,6 +13,11 @@
 namespace hpdmk {
 
     template <typename Real>
+    inline Real mode_to_k(const int idx, const int n_k, const Real delta_k) {
+        return (idx - n_k) * delta_k;
+    }
+
+    template <typename Real>
     inline Real window_kernel(Real k2, double lambda, double C0, double c, Real sigma){
         if (k2 == 0)
             return 0;
@@ -57,6 +62,18 @@ namespace hpdmk {
     }
 
     template <typename Real>
+    inline Real residual_kernel_derivative(Real r, PolyFun<Real> real_poly, Real cutoff) {
+        if (r == 0) {
+            return 0;
+        }
+
+        const Real scaled_r = r / cutoff;
+        const Real poly = real_poly.eval(scaled_r);
+        const Real poly_derivative = real_poly.eval_derivative(scaled_r) / cutoff;
+        return poly_derivative / r - poly / (r * r);
+    }
+
+    template <typename Real>
     sctl::Vector<Real> window_matrix(double lambda, double C0, double c, Real sigma, Real delta_k, Real n_k) {
         // interaction matrix for level 1, erf(r / sigma_2) / r
         int d = 2 * n_k + 1;
@@ -67,9 +84,9 @@ namespace hpdmk {
         for (int k = 0; k < n_k + 1; k++) {
             for (int j = 0; j < d; j++) {
                 for (int i = 0; i < d; i++) {
-                    k_x = (i - n_k) * delta_k;
-                    k_y = (j - n_k) * delta_k;
-                    k_z = (k - n_k) * delta_k;
+                    k_x = mode_to_k(i, n_k, delta_k);
+                    k_y = mode_to_k(j, n_k, delta_k);
+                    k_z = mode_to_k(k, n_k, delta_k);
                     k2 = k_x * k_x + k_y * k_y + k_z * k_z;
                     auto val = window_kernel<Real>(k2, lambda, C0, c, sigma);
                     if (k == n_k ) {
@@ -94,9 +111,9 @@ namespace hpdmk {
         for (int k = 0; k < n_k + 1; ++k) {
             for (int j = 0; j < d; ++j) {
                 for (int i = 0; i < d; ++i) {
-                    kx = (i - n_k) * delta_k;   
-                    ky = (j - n_k) * delta_k;
-                    kz = (k - n_k) * delta_k;
+                    kx = mode_to_k(i, n_k, delta_k);
+                    ky = mode_to_k(j, n_k, delta_k);
+                    kz = mode_to_k(k, n_k, delta_k);
                     k2 = kx * kx + ky * ky + kz * kz;
                     auto val = difference_kernel<Real>(k2, lambda, C0, c, diff0, sigma_l, sigma_lp1);
                     if (k == n_k ) {
