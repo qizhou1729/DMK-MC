@@ -14,6 +14,24 @@
 #include <cstdlib> 
 
 namespace hpdmk {
+    namespace {
+        double get_difference_hpw_factor(int digits) {
+            if (digits <= 3) {
+                return 0.6620;
+            }
+            if (digits <= 6) {
+                return 0.6686;
+            }
+            if (digits <= 9) {
+                return 0.6625;
+            }
+            if (digits <= 12) {
+                return 0.6677;
+            }
+            throw std::runtime_error("digits is not supported");
+        }
+    }
+
     template <typename Real>
     void HPDMKPtTree<Real>::form_wavenumbers() {
         // if float, only supports 3 and 6
@@ -29,7 +47,7 @@ namespace hpdmk {
             }
         }
 
-        Real delta_k0 = 2.0 * M_PI / 3.0;
+        Real delta_k0 = Real(M_PI * get_difference_hpw_factor(params.digits));
         std::vector<double> coefs;
 
         get_prolate_params(params.digits, c, lambda, C0, n_diff, coefs);

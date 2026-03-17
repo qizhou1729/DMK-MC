@@ -7,6 +7,7 @@
 #include <cmath>
 #include <complex>
 #include <algorithm>
+#include <sstream>
 #include <utils.hpp>
 #include <random>
 #include <omp.h>
@@ -14,10 +15,16 @@
 
 using namespace hpdmk;
 
-void compare_planewave(hpdmk_init init) {
+namespace {
+double weighted_planewave_tol(int digits, const std::complex<double> &ref) {
+    return 5.0 * std::pow(10.0, -digits + 1) * std::max(1.0, std::abs(ref));
+}
+}
+
+void compare_planewave(hpdmk_init init, int digits = 3) {
     HPDMKParams params;
     params.n_per_leaf = 5;
-    params.digits = 3;
+    params.digits = digits;
     params.L = 20.0;
     params.init = init;
 
@@ -60,7 +67,8 @@ void compare_planewave(hpdmk_init init) {
 
         // std::cout << "kx: " << kx << ", ky: " << ky << ", kz: " << kz << std::endl;
 
-        auto rho = outgoing_pw_root[id_x + id_y * d_root + id_z * d_root * d_root];
+        const int idx = id_x + id_y * d_root + id_z * d_root * d_root;
+        auto rho = outgoing_pw_root[idx];
         std::complex<double> rho_direct = 0;
         for (int i = 0; i < n_src; i++) {
             double x = r_src[i * 3];
@@ -68,8 +76,9 @@ void compare_planewave(hpdmk_init init) {
             double z = r_src[i * 3 + 2];
             rho_direct += std::exp( - std::complex<double>(0, 1) * (kx * x + ky * y + kz * z)) * std::complex<double>(charge[i], 0);
         }
-        ASSERT_NEAR(std::real(rho) / std::real(rho_direct), 1, 1e-3);
-        ASSERT_NEAR(std::imag(rho) / std::imag(rho_direct), 1, 1e-3);
+        const auto weighted_rho = rho * tree.interaction_mat[0][idx];
+        const auto weighted_rho_direct = rho_direct * tree.interaction_mat[0][idx];
+        ASSERT_LE(std::abs(weighted_rho - weighted_rho_direct), weighted_planewave_tol(digits, weighted_rho_direct));
     }
 
     // verify non-root
@@ -78,6 +87,12 @@ void compare_planewave(hpdmk_init init) {
             if (tree.node_particles[i_node].Dim() == 0) {
                 continue;
             }
+
+            std::ostringstream trace;
+            trace << "outgoing level=" << l << " node=" << i_node
+                  << " leaf=" << isleaf(tree.GetNodeAttr()[i_node])
+                  << " particles=" << tree.node_particles[i_node].Dim();
+            SCOPED_TRACE(trace.str());
 
             // std::cout << "l: " << l << ", i_node: " << i_node << ", num_particles: " << tree.node_particles[i_node].Dim() << std::endl;
 
@@ -101,7 +116,8 @@ void compare_planewave(hpdmk_init init) {
 
                 // std::cout << "l: " << l << ", kx: " << kx << ", ky: " << ky << ", kz: " << kz << ", inode: " << i_node << std::endl;
                 
-                auto rho = outgoing_pw_l[id_x + id_y * d_l + id_z * d_l * d_l];
+                const int idx = id_x + id_y * d_l + id_z * d_l * d_l;
+                auto rho = outgoing_pw_l[idx];
 
                 // std::cout << "rho: " << std::real(rho) << ", " << std::imag(rho) << std::endl;
                 std::complex<double> rho_direct = 0;
@@ -122,8 +138,10 @@ void compare_planewave(hpdmk_init init) {
 
                 // std::cout << "rho_direct: " << std::real(rho_direct) << ", " << std::imag(rho_direct) << std::endl;
                 
-                ASSERT_NEAR(std::real(rho), std::real(rho_direct), 1e-3);
-                ASSERT_NEAR(std::imag(rho), std::imag(rho_direct), 1e-3);
+                const auto weighted_rho = rho * tree.interaction_mat[l][idx];
+                const auto weighted_rho_direct = rho_direct * tree.interaction_mat[l][idx];
+                ASSERT_LE(std::abs(weighted_rho - weighted_rho_direct),
+                          weighted_planewave_tol(digits, weighted_rho_direct));
 
                 // std::cout << "outgoing_pw_l, " << "l: " << l << ", " << "rho: " << std::real(rho) << ", " << std::imag(rho) << ", rho_direct: " << std::real(rho_direct) << ", " << std::imag(rho_direct) << std::endl;
             }
@@ -139,6 +157,11 @@ void compare_planewave(hpdmk_init init) {
             if (isleaf(tree.GetNodeAttr()[i_node])) {
                 continue;
             }
+
+            std::ostringstream trace;
+            trace << "incoming level=" << l << " node=" << i_node
+                  << " particles=" << tree.node_particles[i_node].Dim();
+            SCOPED_TRACE(trace.str());
 
             // std::cout << "l: " << l << ", i_node: " << i_node << ", num_particles: " << tree.node_particles[i_node].Dim() << std::endl;
 
@@ -163,7 +186,8 @@ void compare_planewave(hpdmk_init init) {
 
                 // std::cout << "l: " << l << ", kx: " << kx << ", ky: " << ky << ", kz: " << kz << ", inode: " << i_node << std::endl;
                 
-                auto rho = incoming_pw_l[id_x + id_y * d_l + id_z * d_l * d_l] - std::conj(outgoing_pw_l[id_x + id_y * d_l + id_z * d_l * d_l]);
+                const int idx = id_x + id_y * d_l + id_z * d_l * d_l;
+                auto rho = incoming_pw_l[idx] - std::conj(outgoing_pw_l[idx]);
 
                 // std::cout << "rho: " << std::real(rho) << ", " << std::imag(rho) << std::endl;
                 std::complex<double> rho_direct = 0;
@@ -214,8 +238,10 @@ void compare_planewave(hpdmk_init init) {
 
                 // std::cout << "rho_direct: " << std::real(rho_direct) << ", " << std::imag(rho_direct) << std::endl;
                 
-                ASSERT_NEAR(std::real(rho), std::real(rho_direct), 1e-3);
-                ASSERT_NEAR(std::imag(rho), std::imag(rho_direct), 1e-3);
+                const auto weighted_rho = rho * tree.interaction_mat[l][idx];
+                const auto weighted_rho_direct = rho_direct * tree.interaction_mat[l][idx];
+                ASSERT_LE(std::abs(weighted_rho - weighted_rho_direct),
+                          weighted_planewave_tol(digits, weighted_rho_direct));
                 // std::cout << "incoming_pw_l, " << "l: " << l << ", " << "rho: " << std::real(rho) << ", " << std::imag(rho) << ", rho_direct: " << std::real(rho_direct) << ", " << std::imag(rho_direct) << std::endl;
             }
             break;
@@ -766,6 +792,55 @@ void compare_force_finite_difference(int digits) {
     EXPECT_NEAR(force_res[0], fd_force_res_x, 5 * std::pow(10.0, -digits + 1));
 }
 
+void compare_force_finite_difference_shallow_leaf() {
+    HPDMKParams params;
+    params.n_per_leaf = 5;
+    params.digits = 12;
+    params.L = 20.0;
+    params.init = DIRECT;
+
+    const int n_src = 128;
+    const int particle = 90;
+    const int comp = 2;
+    const double h = 1e-3;
+
+    sctl::Vector<double> r_src(n_src * 3);
+    sctl::Vector<double> charge(n_src);
+
+    omp_set_num_threads(1);
+
+    random_init(r_src, 0.0, params.L);
+    random_init(charge, -1.0, 1.0);
+    unify_charge(charge);
+
+    const sctl::Comm sctl_comm(MPI_COMM_WORLD);
+    hpdmk::HPDMKPtTree<double> tree(sctl_comm, params, r_src, charge);
+    tree.form_outgoing_pw();
+    tree.form_incoming_pw();
+
+    tree.locate_particle(tree.path_to_origin, r_src[3 * particle], r_src[3 * particle + 1], r_src[3 * particle + 2]);
+    ASSERT_LT(tree.path_to_origin.Dim(), tree.max_depth);
+    ASSERT_TRUE(isleaf(tree.GetNodeAttr()[tree.path_to_origin[tree.path_to_origin.Dim() - 1]]));
+
+    const auto force_diff = tree.eval_force_diff();
+
+    sctl::Vector<double> r_src_plus = r_src;
+    sctl::Vector<double> r_src_minus = r_src;
+    r_src_plus[3 * particle + comp] += h;
+    r_src_minus[3 * particle + comp] -= h;
+
+    hpdmk::HPDMKPtTree<double> tree_plus(sctl_comm, params, r_src_plus, charge);
+    tree_plus.form_outgoing_pw();
+    tree_plus.form_incoming_pw();
+
+    hpdmk::HPDMKPtTree<double> tree_minus(sctl_comm, params, r_src_minus, charge);
+    tree_minus.form_outgoing_pw();
+    tree_minus.form_incoming_pw();
+
+    const double fd_force_diff = -(tree_plus.eval_energy_diff() - tree_minus.eval_energy_diff()) / (2.0 * h);
+    EXPECT_NEAR(force_diff[3 * particle + comp], fd_force_diff, 1e-6);
+}
+
 int main(int argc, char** argv) {
     MPI_Init(nullptr, nullptr);
     testing::InitGoogleTest(&argc, argv);
@@ -780,6 +855,18 @@ TEST(HPDMKTest, PlanewaveDirect) {
 
 TEST(HPDMKTest, PlanewaveProxy) {
     compare_planewave(PROXY);
+}
+
+TEST(HPDMKTest, PlanewaveProxy6Digits) {
+    compare_planewave(PROXY, 6);
+}
+
+TEST(HPDMKTest, PlanewaveProxy9Digits) {
+    compare_planewave(PROXY, 9);
+}
+
+TEST(HPDMKTest, PlanewaveProxy12Digits) {
+    compare_planewave(PROXY, 12);
 }
 
 TEST(HPDMKTest, PlanewaveSingle) {
@@ -821,4 +908,8 @@ TEST(HPDMKTest, ForceAccuracyRegression) {
 
 TEST(HPDMKTest, ForceFiniteDifference) {
     compare_force_finite_difference(6);
+}
+
+TEST(HPDMKTest, ForceFiniteDifferenceShallowLeaf) {
+    compare_force_finite_difference_shallow_leaf();
 }

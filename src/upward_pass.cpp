@@ -8,8 +8,13 @@ namespace hpdmk {
 
 int get_poly_order(int ndigits) {
     if (ndigits <= 3)
+        return 9;
+    if (ndigits <= 6)
         return 18;
-    // FIXME: Add more orders as needed
+    if (ndigits <= 9)
+        return 28;
+    if (ndigits <= 12)
+        return 38;
     throw std::runtime_error("Polynomial order for requested precision not implemented");
 }
 
@@ -181,13 +186,13 @@ sctl::Vector<std::complex<T>> calc_prox_to_pw(T boxsize, T hpw, int n_pw, int n_
 
 template <typename Real>
 void decenter_phase(const ndview<const Real, 1> &center, Real boxsize,
-                    const ndview<std::complex<Real>, 4> &pw_expansion, sctl::Vector<Real> &workspace) {
+                    Real hpw, const ndview<std::complex<Real>, 4> &pw_expansion, sctl::Vector<Real> &workspace) {
     const auto n_pw = pw_expansion.extent(0);
     const auto dim = 3;
     workspace.ReInit(dim * n_pw * 2);
     ndview<std::complex<Real>, 2> shift_correction(reinterpret_cast<std::complex<Real> *>(&workspace[0]), dim, n_pw);
     const int shift = n_pw / 2;
-    const Real factor(-2.0 * M_PI / 3.0 / boxsize);
+    const Real factor(-hpw);
     for (int i_dim = 0; i_dim < dim; ++i_dim)
         for (int i = 0; i < n_pw; ++i)
             shift_correction(i_dim, i) = std::exp(std::complex<Real>(0, factor * center[i_dim] * (i - shift)));
@@ -275,13 +280,13 @@ void upward_pass(Tree &tree, sctl::Vector<sctl::Vector<std::complex<typename Tre
         for (auto i_box : tree.level_indices[lowest_nonleaf_level]) {
             if (!tree.r_src_cnt_all[i_box])
                 continue;
-            proxy_coeffs[i_box].resize(n_proxy_coeffs);
+            proxy_coeffs[i_box].assign(n_proxy_coeffs, Real{0});
             charge2proxycharge<Real>(r_src_view(i_box), charge_view(i_box), center_view(i_box),
                                      scale_factor(lowest_nonleaf_level), proxy_view(i_box), workspace);
             outgoing_pw[i_box].ReInit(n_pw_diff * n_pw_diff * n_pw_diff * n_vec);
             proxycharge2pw<Real>(proxy_view(i_box), poly2pw_view(lowest_nonleaf_level), outgoing_pw_view(i_box),
                                  workspace);
-            decenter_phase<Real>(center_view(i_box), tree.boxsize[lowest_nonleaf_level], outgoing_pw_view(i_box),
+            decenter_phase<Real>(center_view(i_box), tree.boxsize[lowest_nonleaf_level], tree.delta_k[lowest_nonleaf_level], outgoing_pw_view(i_box),
                                  workspace);
         }
     }
@@ -293,23 +298,36 @@ void upward_pass(Tree &tree, sctl::Vector<sctl::Vector<std::complex<typename Tre
         for (int i_level = lowest_nonleaf_level - 1; i_level >= 2; --i_level) {
 #pragma omp for schedule(dynamic)
             for (auto parent_box : tree.level_indices[i_level]) {
+                if (!tree.r_src_cnt_all[parent_box])
+                    continue;
+
                 auto &children = node_lists[parent_box].child;
+                bool has_active_child = false;
                 for (int i_child = 0; i_child < n_children; ++i_child) {
                     const int child_box = children[i_child];
-                    if (child_box < 0 || !tree.r_src_cnt_all[child_box])
+                    if (child_box < 0 || proxy_coeffs[child_box].empty())
                         continue;
 
-                    proxy_coeffs[parent_box].resize(n_proxy_coeffs);
+                    if (!has_active_child) {
+                        proxy_coeffs[parent_box].assign(n_proxy_coeffs, Real{0});
+                        has_active_child = true;
+                    }
                     tensorprod_transform<Real>(n_vec, true, proxy_view(child_box), c2p_view(i_child),
                                                proxy_view(parent_box), workspace);
                 }
-                if (proxy_coeffs[parent_box].size()) {
-                    outgoing_pw[parent_box].ReInit(n_pw_diff * n_pw_diff * n_pw_diff * n_vec);
-                    proxycharge2pw<Real>(proxy_view(parent_box), poly2pw_view(i_level), outgoing_pw_view(parent_box),
-                                         workspace);
-                    decenter_phase<Real>(center_view(parent_box), tree.boxsize[i_level], outgoing_pw_view(parent_box),
-                                         workspace);
+
+                if (!has_active_child) {
+                    proxy_coeffs[parent_box].assign(n_proxy_coeffs, Real{0});
+                    charge2proxycharge<Real>(r_src_view(parent_box), charge_view(parent_box), center_view(parent_box),
+                                             scale_factor(i_level), proxy_view(parent_box), workspace);
                 }
+
+                outgoing_pw[parent_box].ReInit(n_pw_diff * n_pw_diff * n_pw_diff * n_vec);
+                proxycharge2pw<Real>(proxy_view(parent_box), poly2pw_view(i_level), outgoing_pw_view(parent_box),
+                                     workspace);
+                decenter_phase<Real>(center_view(parent_box), tree.boxsize[i_level], tree.delta_k[i_level],
+                                     outgoing_pw_view(parent_box), workspace);
+
                 for (int i_child = 0; i_child < n_children; ++i_child) {
                     const int child_box = children[i_child];
                     if (child_box < 0)

@@ -101,6 +101,7 @@ namespace hpdmk {
         force_sorted.SetZero();
 
         const Real inv_fourier_volume = 1 / std::pow(2 * M_PI, 3);
+        auto &node_attr = this->GetNodeAttr();
 
         for (int i_particle = 0; i_particle < n_particles; ++i_particle) {
             const Real x = r_src_sorted[i_particle * 3];
@@ -111,29 +112,82 @@ namespace hpdmk {
             locate_particle(path_to_origin, x, y, z);
             form_outgoing_pw_single(outgoing_pw_origin, path_to_origin, x, y, z, q);
 
-            for (int l = 2; l < path_to_origin.Dim() - 1; ++l) {
-                const sctl::Long i_node = path_to_origin[l];
+            const int level_end = std::min<int>(path_to_origin.Dim(), max_depth - 1);
+            for (int l = 2; l < level_end; ++l) {
+                const sctl::Long source_node = path_to_origin[l];
                 const int d_diff = 2 * n_diff + 1;
                 const int dims_diff = d_diff * d_diff * (n_diff + 1);
-                const Real diff_prefactor = inv_fourier_volume * std::pow(delta_k[l], 3);
+                const Real diff_prefactor = Real(0.5) * inv_fourier_volume * std::pow(delta_k[l], 3);
 
                 auto &single_level = outgoing_pw_origin[l];
-                auto &incoming_level = incoming_pw[i_node];
                 auto &diff_weights = interaction_mat[l];
 
-                for (int idx = 0; idx < dims_diff; ++idx) {
-                    const int ix = idx % d_diff;
-                    const int iy = (idx / d_diff) % d_diff;
-                    const int iz = idx / (d_diff * d_diff);
+                auto accumulate_mode_force = [&](const Real kx, const Real ky, const Real kz, const Real weighted_imag) {
+                    force_sorted[i_particle * 3] += weighted_imag * kx;
+                    force_sorted[i_particle * 3 + 1] += weighted_imag * ky;
+                    force_sorted[i_particle * 3 + 2] += weighted_imag * kz;
+                };
 
-                    const Real kx = mode_to_k(ix, n_diff, delta_k[l]);
-                    const Real ky = mode_to_k(iy, n_diff, delta_k[l]);
-                    const Real kz = mode_to_k(iz, n_diff, delta_k[l]);
-                    const Real scale = -diff_prefactor * diff_weights[idx] * std::imag(single_level[idx] * incoming_level[idx]);
+                if (!isleaf(node_attr[source_node])) {
+                    auto &source_outgoing = outgoing_pw[source_node];
+                    auto &source_incoming = incoming_pw[source_node];
 
-                    force_sorted[i_particle * 3] += scale * kx;
-                    force_sorted[i_particle * 3 + 1] += scale * ky;
-                    force_sorted[i_particle * 3 + 2] += scale * kz;
+                    for (int idx = 0; idx < dims_diff; ++idx) {
+                        const int ix = idx % d_diff;
+                        const int iy = (idx / d_diff) % d_diff;
+                        const int iz = idx / (d_diff * d_diff);
+
+                        const Real kx = mode_to_k(ix, n_diff, delta_k[l]);
+                        const Real ky = mode_to_k(iy, n_diff, delta_k[l]);
+                        const Real kz = mode_to_k(iz, n_diff, delta_k[l]);
+                        const Real imag_part =
+                            std::imag(single_level[idx] * source_incoming[idx]) +
+                            std::imag(single_level[idx] * std::conj(source_outgoing[idx]));
+                        const Real scale = -diff_prefactor * diff_weights[idx] * imag_part;
+
+                        accumulate_mode_force(kx, ky, kz, scale);
+                    }
+                }
+
+                const Real center_xs = centers[source_node * 3];
+                const Real center_ys = centers[source_node * 3 + 1];
+                const Real center_zs = centers[source_node * 3 + 2];
+                auto &shift_mat_l = shift_mat[l];
+
+                for (auto target_node : neighbors[source_node].colleague) {
+                    if (isleaf(node_attr[target_node]) || node_particles[target_node].Dim() == 0) {
+                        continue;
+                    }
+
+                    auto &target_outgoing = outgoing_pw[target_node];
+                    const Real center_xt = centers[target_node * 3];
+                    const Real center_yt = centers[target_node * 3 + 1];
+                    const Real center_zt = centers[target_node * 3 + 2];
+
+                    const int px = periodic_shift(center_xs, center_xt, L, boxsize[l], boxsize[l]);
+                    const int py = periodic_shift(center_ys, center_yt, L, boxsize[l], boxsize[l]);
+                    const int pz = periodic_shift(center_zs, center_zt, L, boxsize[l], boxsize[l]);
+                    const bool shifted = (px != 0 || py != 0 || pz != 0);
+                    const sctl::Vector<std::complex<Real>> *shift_vec_ptr = nullptr;
+                    if (shifted) {
+                        shift_vec_ptr = &shift_mat_l.select_shift_vec(px, py, pz);
+                    }
+
+                    for (int idx = 0; idx < dims_diff; ++idx) {
+                        const int ix = idx % d_diff;
+                        const int iy = (idx / d_diff) % d_diff;
+                        const int iz = idx / (d_diff * d_diff);
+
+                        const Real kx = mode_to_k(ix, n_diff, delta_k[l]);
+                        const Real ky = mode_to_k(iy, n_diff, delta_k[l]);
+                        const Real kz = mode_to_k(iz, n_diff, delta_k[l]);
+                        const std::complex<Real> shifted_single =
+                            shifted ? single_level[idx] * (*shift_vec_ptr)[idx] : single_level[idx];
+                        const Real imag_part = std::imag(target_outgoing[idx] * std::conj(shifted_single));
+                        const Real scale = diff_prefactor * diff_weights[idx] * imag_part;
+
+                        accumulate_mode_force(kx, ky, kz, scale);
+                    }
                 }
             }
         }
