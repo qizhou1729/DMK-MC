@@ -1,0 +1,3 @@
+backend,n_src,n_per_leaf,digits,L,repeats,construct_s,outgoing_s,incoming_s,window_s,diff_s,residual_s,total_s
+DIRECT,1000,5,3,20.000000,100,0.007598,0.001760,0.002355,0.000001,0.000057,0.000799,0.004972
+PROXY,1000,5,3,20.000000,100,0.007516,0.007663,0.002357,0.000001,0.000059,0.000803,0.010882
